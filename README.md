@@ -48,3 +48,50 @@ A real time chat application
   - Prometheus
   - Grafana
   - Loki
+
+## Core Features
+
+### MVP Features
+
+#### Authentication
+
+- Register
+- Login
+- Logout
+- Refresh tokens
+- Email verification
+- Password reset
+
+#### User Features
+
+- User profiles
+- Online/offline presence
+- Last seen
+- Typing indicators
+- User search
+
+#### Chat Features
+
+- Direct messaging
+- Group chats
+- Realtime message delivery
+- Read receipts
+- Message reactions
+- Message editing
+- Message deletion
+- Infinite scroll history
+
+#### Media Features
+
+- Image uploads
+- File uploads
+- Voice notes
+- Link previews
+
+#### Realtime Features
+
+- Presence tracking
+- Typing indicators
+- Delivery acknowledgements
+- Reconnect handling
+- Heartbeats/ping-pong
