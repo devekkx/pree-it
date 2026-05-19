@@ -1,0 +1,13 @@
+sequenceDiagram
+
+    participant Client
+    participant Gateway
+    participant RT as Realtime Service
+    participant Redis
+    participant NATS
+
+    Client->>Gateway: WebSocket Connect
+    Gateway->>RT: Upgrade Connection
+
+    RT->>Redis: Set User Online
+    RT->>NATS: Emit presence.user.online

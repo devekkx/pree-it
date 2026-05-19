@@ -1,0 +1,23 @@
+---
+title: "WebSocket Scaling Topology"
+---
+
+flowchart TB
+
+    NATS["NATS Event Bus"]
+
+    WS1["Realtime Instance 1"]
+    WS2["Realtime Instance 2"]
+    WS3["Realtime Instance 3"]
+
+    CLIENT1["Client"]
+    CLIENT2["Client"]
+    CLIENT3["Client"]
+
+    NATS --> WS1
+    NATS --> WS2
+    NATS --> WS3
+
+    CLIENT1 --> WS1
+    CLIENT2 --> WS2
+    CLIENT3 --> WS3
