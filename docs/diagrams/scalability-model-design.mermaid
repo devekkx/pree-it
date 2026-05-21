@@ -1,0 +1,19 @@
+flowchart TB
+
+    LB["Global Load Balancer"]
+
+    GW1["Gateway Pod 1"]
+    GW2["Gateway Pod 2"]
+
+    RT1["Realtime Pod 1"]
+    RT2["Realtime Pod 2"]
+    RT3["Realtime Pod 3"]
+
+    LB --> GW1
+    LB --> GW2
+
+    GW1 --> RT1
+    GW1 --> RT2
+
+    GW2 --> RT2
+    GW2 --> RT3

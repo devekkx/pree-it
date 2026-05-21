@@ -1,0 +1,17 @@
+sequenceDiagram
+    title Authentication and Authorization Flow Sequence Diagram
+    
+    participant Client
+    participant Gateway
+    participant Auth
+    participant Redis
+
+    Client->>Gateway: Login Request
+
+    Gateway->>Auth: Authenticate User
+
+    Auth->>Redis: Store Session
+
+    Auth-->>Gateway: JWT + Refresh Token
+
+    Gateway-->>Client: Auth Response

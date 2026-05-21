@@ -1,0 +1,14 @@
+sequenceDiagram
+
+title Search Indexing Flow Sequence Diagram
+
+    participant Chat
+    participant NATS
+    participant Search
+    participant SearchDB
+
+    Chat->>NATS: chat.message.created
+
+    NATS->>Search: Consume Event
+
+    Search->>SearchDB: Index Message

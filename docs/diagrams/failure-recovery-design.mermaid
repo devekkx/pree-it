@@ -1,0 +1,18 @@
+flowchart LR
+
+    CLIENT["Client"]
+
+    WS["Realtime Service"]
+
+    REDIS["Redis"]
+
+    NATS["NATS"]
+
+    CLIENT --> WS
+
+    WS --> REDIS
+    WS --> NATS
+
+    WS -. Failure .-> CLIENT
+
+    CLIENT -. Reconnect .-> WS
