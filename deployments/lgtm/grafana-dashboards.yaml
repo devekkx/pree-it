@@ -1,0 +1,16 @@
+# Tells Grafana to load dashboards from the provisioning directory.
+# Drop any JSON dashboard file into deployments/lgtm/dashboards/
+# and it will appear in Grafana automatically on startup.
+
+apiVersion: 1
+
+providers:
+  - name: pree-it
+    orgId: 1
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: true
