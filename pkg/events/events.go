@@ -1,20 +1,32 @@
+// NATS subject constants and message envelope shared by all services.
+
 package events
 
-// NATS subject constants shared across all services.
+// Subject constants
 const (
-	UserCreated    = "user.created"
-	UserDeleted    = "user.deleted"
-	MessageCreated = "chat.message.created"
-	MessageUpdated = "chat.message.updated"
-	MessageDeleted = "chat.message.deleted"
-	UserOnline     = "presence.user.online"
-	UserOffline    = "presence.user.offline"
-	ProfileUpdated = "user.profile.updated"
+	// Auth domain
+	SubjectUserCreated = "user.created"
+	SubjectUserDeleted = "user.deleted"
+
+	// Chat domain
+	SubjectMessageCreated = "chat.message.created"
+	SubjectMessageUpdated = "chat.message.updated"
+	SubjectMessageDeleted = "chat.message.deleted"
+
+	// Presence domain
+	SubjectUserOnline  = "presence.user.online"
+	SubjectUserOffline = "presence.user.offline"
+
+	// User domain
+	SubjectProfileUpdated = "user.profile.updated"
 )
 
-// Envelope wraps every NATS message for consistent structure.
-type Envelope struct {
-	Subject   string      `json:"subject"`
-	Timestamp int64       `json:"timestamp"` // Unix milliseconds
-	Payload   interface{} `json:"payload"`
+// Envelope wraps every NATS message published on the bus.
+// All consumers must be able to decode this shape before
+// decoding the service-specific Payload.
+type Envelope[T any] struct {
+	Subject   string `json:"subject"`
+	Timestamp int64  `json:"timestamp"` // Unix milliseconds (UTC)
+	TraceID   string `json:"trace_id,omitempty"`
+	Payload   T      `json:"payload"`
 }
