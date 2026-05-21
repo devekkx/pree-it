@@ -1,0 +1,30 @@
+sequenceDiagram
+title Request Lifecycle Sequence Diagram
+
+    participant Client
+    participant Gateway
+    participant Auth
+    participant Chat
+    participant DB as PostgreSQL
+    participant NATS
+    participant RT as Realtime Service
+    participant Redis
+    participant Receiver
+
+    Client->>Gateway: POST /messages
+
+    Gateway->>Auth: Validate JWT
+    Auth-->>Gateway: User Validated
+
+    Gateway->>Chat: Forward Message
+
+    Chat->>DB: Insert Message
+    DB-->>Chat: Success
+
+    Chat->>NATS: Emit chat.message.created
+
+    NATS->>RT: Consume Event
+
+    RT->>Redis: Fetch Active Connections
+
+    RT->>Receiver: WebSocket Push

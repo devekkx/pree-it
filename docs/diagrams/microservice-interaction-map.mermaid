@@ -1,0 +1,32 @@
+---
+title: "Microservice Interaction Map"
+---
+
+flowchart LR
+
+    GATEWAY["Gateway"]
+
+    AUTH["Auth Service"]
+    USER["User Service"]
+    CHAT["Chat Service"]
+    RT["Realtime Service"]
+    MEDIA["Media Service"]
+    NOTIF["Notification Service"]
+    SEARCH["Search Service"]
+
+    NATS["NATS"]
+
+    GATEWAY --> AUTH
+    GATEWAY --> USER
+    GATEWAY --> CHAT
+    GATEWAY --> RT
+    GATEWAY --> MEDIA
+
+    CHAT --> NATS
+    USER --> NATS
+    AUTH --> NATS
+    MEDIA --> NATS
+
+    NATS --> RT
+    NATS --> NOTIF
+    NATS --> SEARCH

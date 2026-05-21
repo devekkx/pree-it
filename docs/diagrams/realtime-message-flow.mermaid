@@ -1,0 +1,22 @@
+sequenceDiagram
+title Realtime Message Flow Sequence Diagram
+
+    participant ClientA as Sender Client
+    participant Gateway as API Gateway
+    participant Chat as Chat Service
+    participant DB as PostgreSQL
+    participant NATS as NATS Event Bus
+    participant RT as Realtime Service
+    participant ClientB as Receiver Client
+
+    ClientA->>Gateway: Send Message
+    Gateway->>Chat: Forward Request
+
+    Chat->>DB: Store Message
+    DB-->>Chat: Success
+
+    Chat->>NATS: Emit chat.message.created
+
+    NATS->>RT: Deliver Event
+
+    RT->>ClientB: WebSocket Push
