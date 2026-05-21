@@ -14,6 +14,7 @@ import (
 	"github.com/devekkx/pree-it/auth/internal/repository"
 	"github.com/devekkx/pree-it/pkg/config"
 	"github.com/devekkx/pree-it/pkg/logger"
+
 	"go.uber.org/zap"
 )
 
