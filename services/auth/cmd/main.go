@@ -11,7 +11,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/devekkx/pree-it/auth/internal/handler"
 	"github.com/devekkx/pree-it/auth/internal/repository"
+	"github.com/devekkx/pree-it/auth/internal/service"
+	"github.com/devekkx/pree-it/auth/server"
 	"github.com/devekkx/pree-it/pkg/config"
 	"github.com/devekkx/pree-it/pkg/logger"
 
@@ -24,7 +27,7 @@ func main() {
 
 	cfg := config.Load()
 
-	// Repository─
+	// Repository
 	repo, err := repository.NewPostgres(context.Background(), cfg)
 	if err != nil {
 		log.Fatal("failed to connect to postgres", zap.Error(err))
