@@ -11,10 +11,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/devekkx/pree-it/auth/internal/handler"
 	"github.com/devekkx/pree-it/auth/internal/repository"
-	"github.com/devekkx/pree-it/auth/internal/service"
-	"github.com/devekkx/pree-it/auth/server"
 	"github.com/devekkx/pree-it/pkg/config"
 	"github.com/devekkx/pree-it/pkg/logger"
 
@@ -35,13 +32,13 @@ func main() {
 	defer repo.Close()
 
 	// Service
-	svc := service.NewAuthService(repo, cfg)
+	// svc := service.NewAuthService(repo, cfg)
 
 	// Handler
-	h := handler.NewAuthHandler(svc, log)
+	// h := handler.NewAuthHandler(svc, log)
 
 	// HTTP Server
-	srv := server.New(cfg, log, h)
+	// srv := server.New(cfg, log, h)
 
 	// Start
 	go func() {
