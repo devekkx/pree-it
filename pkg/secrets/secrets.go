@@ -34,7 +34,7 @@ func Read(name string) (string, error) {
 		return val, nil
 	}
 
-	// 3. Plain env var — dev only
+	// 3. Plain env var - dev only
 	if val := os.Getenv(strings.ToUpper(name)); val != "" {
 		return val, nil
 	}
