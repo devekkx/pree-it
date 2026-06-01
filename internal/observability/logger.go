@@ -5,54 +5,52 @@ import (
 	"os"
 
 	"go.opentelemetry.io/contrib/bridges/otelzap"
-	"go.opentelemetry.io/otel/log/global"
+	otellog "go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-// NewLogger returns a Zap logger that:
-//  1. Writes human-readable output to stdout (for Docker)
-//  2. Mirrors every log entry to the OTel log pipeline → Loki
-//  3. Attaches trace_id and span_id to every log entry automatically
+// NewLogger returns a Zap logger that writes structured JSON to stdout
+// and mirrors every entry into the OTel log pipeline (→ Loki via Collector).
+// Must be called after observability.Setup() so the global logger provider
+// is already registered.
 func NewLogger(serviceName string) (*zap.Logger, error) {
-	// Stdout core — structured JSON
-	stdoutCore, err := stdoutZapCore()
-	if err != nil {
-		return nil, err
-	}
+	//  Stdout core
+	encCfg := zap.NewProductionEncoderConfig()
+	encCfg.TimeKey = "timestamp"
+	encCfg.MessageKey = "message"
+	encCfg.LevelKey = "level"
+	encCfg.CallerKey = "caller"
 
-	// OTel bridge core — sends to Loki via OTel Collector
-	otelCore := otelzap.NewCore(
-		serviceName,
-		otelzap.WithLoggerProvider(global.GetLoggerProvider()),
+	stdoutCore := zapcore.NewCore(
+		zapcore.NewJSONEncoder(encCfg),
+		zapcore.AddSync(os.Stdout),
+		zapcore.InfoLevel,
 	)
 
-	// Combine both cores — logs go to stdout AND Loki
+	//  OTel bridge core
+	// Sends every Zap log entry to the OTel LoggerProvider → Collector → Loki.
+	// trace_id and span_id are attached automatically by the bridge when a
+	// span is active in the context — enabling log↔trace correlation in Grafana.
+	otelCore := otelzap.NewCore(
+		serviceName,
+		otelzap.WithLoggerProvider(otellog.GetLoggerProvider()),
+	)
+
 	combined := zapcore.NewTee(stdoutCore, otelCore)
 
-	return zap.New(combined,
+	return zap.New(
+		combined,
 		zap.AddCaller(),
 		zap.AddStacktrace(zapcore.ErrorLevel),
 	), nil
 }
 
-func stdoutZapCore() (zapcore.Core, error) {
-	cfg := zap.NewProductionEncoderConfig()
-	cfg.TimeKey = "timestamp"
-	cfg.MessageKey = "message"
-
-	enc := zapcore.NewJSONEncoder(cfg)
-	ws := zapcore.AddSync(zapcore.Lock(zapcore.NewMultiWriteSyncer()))
-
-	return zapcore.NewCore(enc, zapcore.AddSync(zapcore.Lock(
-		zapcore.NewMultiWriteSyncer(zapcore.AddSync(os.Stdout)),
-	)), zapcore.InfoLevel), nil
-}
-
-// WithContext extracts the active trace span from ctx and returns a logger
-// with trace_id and span_id fields attached — these are the keys Loki's
-// derivedFields rule matches to link logs → Tempo traces.
+// WithContext returns a child logger with trace_id and span_id fields
+// extracted from the active OTel span in ctx.
+// These fields match the derivedFields regex in the Loki datasource config,
+// rendering a "View Trace in Tempo" button in Grafana Explore.
 func WithContext(ctx context.Context, log *zap.Logger) *zap.Logger {
 	span := trace.SpanFromContext(ctx)
 	if !span.SpanContext().IsValid() {
