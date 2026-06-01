@@ -5,18 +5,18 @@ import (
 	"os"
 	"time"
 
-	"github.com/yourorg/chat-auth/pkg/secrets"
+	"github.com/devekkx/pree-it-auth/pkg/secrets"
 )
 
 // Config holds all resolved configuration for the auth service.
-// Secrets are never stored as plain env vars — always read from files.
+// Secrets are never stored as plain env vars - always read from files.
 type Config struct {
 	// Runtime
 	Env         string
 	ServiceName string
 	ListenAddr  string
 
-	// Resolved DSN — built from parts + secret password
+	// Resolved DSN - built from parts + secret password
 	PostgresDSN string
 
 	// Redis
@@ -37,7 +37,7 @@ type Config struct {
 }
 
 // Load reads all configuration and resolves secrets.
-// Panics immediately if any required secret is missing — fail fast at startup.
+// Panics immediately if any required secret is missing - fail fast at startup.
 func Load() *Config {
 	cfg := &Config{
 		Env:             env("APP_ENV", "development"),
