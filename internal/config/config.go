@@ -41,7 +41,7 @@ type Config struct {
 func Load() *Config {
 	cfg := &Config{
 		Env:             env("APP_ENV", "development"),
-		ServiceName:     env("SERVICE_NAME", "chat-auth"),
+		ServiceName:     env("SERVICE_NAME", "preeit-auth"),
 		ListenAddr:      env("LISTEN_ADDR", ":8081"),
 		RedisAddr:       env("REDIS_ADDR", "redis:6379"),
 		NATSUrl:         env("NATS_URL", "nats://nats:4222"),
@@ -65,9 +65,9 @@ func buildDSN() string {
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=UTC",
 		env("POSTGRES_HOST", "postgres"),
 		env("POSTGRES_PORT", "5432"),
-		env("POSTGRES_USER", "chat_admin"),
+		env("POSTGRES_USER", "preeit_admin"),
 		password,
-		env("POSTGRES_DB", "chat"),
+		env("POSTGRES_DB", "preeit"),
 		env("POSTGRES_SSLMODE", "disable"),
 	)
 }

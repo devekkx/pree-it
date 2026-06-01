@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	meter           = otel.Meter("chat.gateway")
+	meter           = otel.Meter("preeit.gateway")
 	httpReqCounter  metric.Int64Counter
 	httpReqDuration metric.Float64Histogram
 )
