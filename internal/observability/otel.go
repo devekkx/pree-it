@@ -10,7 +10,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	"go.opentelemetry.io/otel/log/global"
+	otellog "go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/propagation"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -21,34 +21,40 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// SDK holds all three provider shutdown functions.
+// SDK holds the three OTel providers. Call Shutdown on process exit.
 type SDK struct {
-	TracerProvider *sdktrace.TracerProvider
-	MeterProvider  *sdkmetric.MeterProvider
-	LoggerProvider *sdklog.LoggerProvider
+	tp *sdktrace.TracerProvider
+	mp *sdkmetric.MeterProvider
+	lp *sdklog.LoggerProvider
 }
 
-// Shutdown flushes and closes all providers gracefully.
+// Shutdown flushes all pending telemetry and closes exporters.
+// Should be deferred immediately after Setup returns.
 func (s *SDK) Shutdown(ctx context.Context) {
-	// Order matters: traces first, then metrics, then logs
-	_ = s.TracerProvider.Shutdown(ctx)
-	_ = s.MeterProvider.Shutdown(ctx)
-	_ = s.LoggerProvider.Shutdown(ctx)
+	// Flush traces first - they may reference active spans from metrics/logs.
+	if err := s.tp.Shutdown(ctx); err != nil {
+		fmt.Printf("otel: trace provider shutdown error: %v\n", err)
+	}
+	if err := s.mp.Shutdown(ctx); err != nil {
+		fmt.Printf("otel: metric provider shutdown error: %v\n", err)
+	}
+	if err := s.lp.Shutdown(ctx); err != nil {
+		fmt.Printf("otel: log provider shutdown error: %v\n", err)
+	}
 }
 
-// Setup initialises the full OTel SDK - traces, metrics, and logs -
-// all exported to the OTel Collector over gRPC.
+// Setup initialises traces, metrics, and logs - all exported to the
+// OTel Collector over gRPC - and registers the global providers.
+// Must be called before any instrumented code runs.
 func Setup(ctx context.Context, collectorEndpoint, serviceName string) (*SDK, error) {
-	// gRPC connection to OTel Collector
 	conn, err := grpc.NewClient(
 		collectorEndpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("grpc dial otel-collector: %w", err)
+		return nil, fmt.Errorf("otel: dial collector %q: %w", collectorEndpoint, err)
 	}
 
-	// Resource (service metadata attached to every signal)
 	res, err := sdkresource.New(ctx,
 		sdkresource.WithAttributes(
 			semconv.ServiceName(serviceName),
@@ -60,13 +66,13 @@ func Setup(ctx context.Context, collectorEndpoint, serviceName string) (*SDK, er
 		sdkresource.WithContainer(),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("build otel resource: %w", err)
+		return nil, fmt.Errorf("otel: build resource: %w", err)
 	}
 
-	// Traces
+	//  Traces
 	traceExp, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))
 	if err != nil {
-		return nil, fmt.Errorf("trace exporter: %w", err)
+		return nil, fmt.Errorf("otel: trace exporter: %w", err)
 	}
 
 	tp := sdktrace.NewTracerProvider(
@@ -75,25 +81,21 @@ func Setup(ctx context.Context, collectorEndpoint, serviceName string) (*SDK, er
 			sdktrace.WithBatchTimeout(5*time.Second),
 			sdktrace.WithMaxExportBatchSize(512),
 		),
-		// Parent-based sampler: honour upstream sampling decisions,
-		// fall back to 10% local sampling
+		// Respect upstream sampling decisions; otherwise sample 10%.
 		sdktrace.WithSampler(
-			sdktrace.ParentBased(
-				sdktrace.TraceIDRatioBased(0.1),
-			),
+			sdktrace.ParentBased(sdktrace.TraceIDRatioBased(0.1)),
 		),
 	)
-
 	otel.SetTracerProvider(tp)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
-		propagation.TraceContext{}, // W3C standard
+		propagation.TraceContext{},
 		propagation.Baggage{},
 	))
 
-	// Metrics
+	//  Metrics
 	metricExp, err := otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithGRPCConn(conn))
 	if err != nil {
-		return nil, fmt.Errorf("metric exporter: %w", err)
+		return nil, fmt.Errorf("otel: metric exporter: %w", err)
 	}
 
 	mp := sdkmetric.NewMeterProvider(
@@ -104,13 +106,12 @@ func Setup(ctx context.Context, collectorEndpoint, serviceName string) (*SDK, er
 			),
 		),
 	)
-
 	otel.SetMeterProvider(mp)
 
-	// Logs
+	//  Logs
 	logExp, err := otlploggrpc.New(ctx, otlploggrpc.WithGRPCConn(conn))
 	if err != nil {
-		return nil, fmt.Errorf("log exporter: %w", err)
+		return nil, fmt.Errorf("otel: log exporter: %w", err)
 	}
 
 	lp := sdklog.NewLoggerProvider(
@@ -121,12 +122,7 @@ func Setup(ctx context.Context, collectorEndpoint, serviceName string) (*SDK, er
 			),
 		),
 	)
+	otellog.SetLoggerProvider(lp)
 
-	global.SetLoggerProvider(lp)
-
-	return &SDK{
-		TracerProvider: tp,
-		MeterProvider:  mp,
-		LoggerProvider: lp,
-	}, nil
+	return &SDK{tp: tp, mp: mp, lp: lp}, nil
 }
