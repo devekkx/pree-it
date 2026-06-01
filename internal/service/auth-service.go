@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/devekkx/pree-it-auth/internal/db"
 	"github.com/devekkx/pree-it-auth/internal/token"
 	"github.com/devekkx/pree-it-auth/pkg/hash"
 	"github.com/google/uuid"
