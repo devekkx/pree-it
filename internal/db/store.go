@@ -8,24 +8,47 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Store embeds the generated Queries and adds transaction support.
-// All application code should interact with *Store, never with the pool directly.
+// Store composes the sqlc-generated Queries with transaction support.
+//
+// IMPORTANT: *Queries is embedded ANONYMOUSLY (no field name before the type).
+// This promotes all methods of *Queries directly onto Store:
+//
+//	store.GetUserByEmail(...)      promoted from (*Queries).GetUserByEmail
+//	store.CreateUser(...)          promoted from (*Queries).CreateUser
+//	store.DeleteExpiredTokens(...) promoted from (*Queries).DeleteExpiredTokens
+//	store.InvalidateTokenFamily(…) promoted from (*Queries).InvalidateTokenFamily
+//	... and every other *Queries method
+//
+// store.Queries still works as a field selector to obtain the *Queries
+// pointer when you need to pass it explicitly (e.g. to issuePairTx).
 type Store struct {
-	*Queries
-	pool *pgxpool.Pool
+	*Queries // anonymous embed - ALL Queries methods promoted
+	pool     *pgxpool.Pool
 }
 
-// NewStore wraps pool in a Store.
+// NewStore wraps pool in a Store ready for use.
 func NewStore(pool *pgxpool.Pool) *Store {
 	return &Store{
-		Queries: New(pool),
+		Queries: New(pool), // New(pool) returns *Queries; assigned to the anonymous field
 		pool:    pool,
 	}
 }
 
-// ExecTx executes fn inside a serializable transaction.
-// It automatically rolls back on any error returned by fn or on panic,
-// and commits only when fn returns nil.
+// ExecTx runs fn inside a serializable transaction.
+//
+// The *Queries passed to fn is bound to the transaction - every query
+// executed via q inside fn participates in the same transaction.
+// ExecTx automatically rolls back on any error and commits on success.
+//
+// Usage in auth_service.go:
+//
+//	err = store.ExecTx(ctx, func(q *db.Queries) error {
+//	    if _, err := q.MarkRefreshTokenUsed(ctx, id); err != nil {
+//	        return err
+//	    }
+//	    _, err = q.CreateRefreshToken(ctx, params)
+//	    return err
+//	})
 func (s *Store) ExecTx(ctx context.Context, fn func(*Queries) error) error {
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{
 		IsoLevel:   pgx.Serializable,
@@ -35,11 +58,9 @@ func (s *Store) ExecTx(ctx context.Context, fn func(*Queries) error) error {
 		return fmt.Errorf("store.ExecTx: begin: %w", err)
 	}
 
-	// Ensure rollback is always attempted if we don't commit.
-	defer func() {
-		// pgx Rollback on an already-committed tx is a no-op - safe to call unconditionally.
-		_ = tx.Rollback(ctx)
-	}()
+	// Always attempt rollback. pgx makes Rollback on an already-committed
+	// transaction a cheap no-op, so this defer is unconditionally safe.
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	if err := fn(New(tx)); err != nil {
 		return err
