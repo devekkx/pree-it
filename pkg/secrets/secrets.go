@@ -6,13 +6,10 @@ import (
 	"strings"
 )
 
-// MustRead resolves a secret by name using the following priority:
-//  1. File at the path given by env var <NAME>_FILE (Docker Secrets pattern)
-//  2. File at /run/secrets/<name>  (Docker Swarm / Compose default mount)
-//  3. Environment variable <NAME>  (local dev fallback only)
-//
-// Panics at startup if the secret cannot be resolved.
-// This is intentional: a service that cannot read its secrets must not start.
+// MustRead resolves a secret using this priority:
+//  1. Environment variable <NAME> (set by entrypoint from secret file)
+//  2. File at path given by <NAME>_FILE env var
+//  3. File at /run/secrets/<name>
 func MustRead(name string) string {
 	val, err := Read(name)
 	if err != nil {
@@ -21,31 +18,21 @@ func MustRead(name string) string {
 	return val
 }
 
-// Read is the non-panicking variant.
 func Read(name string) (string, error) {
-	// 1. Explicit file path override via env
-	if path := os.Getenv(strings.ToUpper(name) + "_FILE"); path != "" {
+	upper := strings.ToUpper(name)
+
+	// 1. Plain env var — set by entrypoint reading the secret file
+	if val := os.Getenv(upper); val != "" {
+		return val, nil
+	}
+
+	// 2. Explicit file path override
+	if path := os.Getenv(upper + "_FILE"); path != "" {
 		return readFile(path, name)
 	}
 
-	// 2. Docker default mount path
-	dockerPath := "/run/secrets/" + name
-	if val, err := readFile(dockerPath, name); err == nil {
-		return val, nil
-	}
-
-	// 3. Plain env var - dev only
-	if val := os.Getenv(strings.ToUpper(name)); val != "" {
-		return val, nil
-	}
-
-	return "", fmt.Errorf(
-		"secret %q not found: checked ${%s_FILE}, %s, and ${%s}",
-		name,
-		strings.ToUpper(name),
-		dockerPath,
-		strings.ToUpper(name),
-	)
+	// 3. Docker default mount path
+	return readFile("/run/secrets/"+name, name)
 }
 
 func readFile(path, name string) (string, error) {
