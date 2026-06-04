@@ -3,9 +3,7 @@
 
 CREATE SCHEMA IF NOT EXISTS auth_schema;
 
-SET search_path = auth_schema;
-
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS auth_schema.users (
     id            UUID        NOT NULL DEFAULT gen_random_uuid(),
     email         TEXT        NOT NULL,
     password_hash TEXT        NOT NULL,
@@ -19,9 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_email
-    ON users (email);
-
-RESET search_path;
+    ON auth_schema.users (email);
 
 -- +goose StatementEnd
 
