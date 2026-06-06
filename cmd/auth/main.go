@@ -60,7 +60,7 @@ func main() {
 	}
 	defer pool.Close()
 
-	if err := db.RunMigrations(shutdownCtx, pool, "db/migrations"); err != nil {
+	if err := db.RunMigrations(shutdownCtx, pool); err != nil {
 		log.Fatal("migrations", zap.Error(err))
 	}
 

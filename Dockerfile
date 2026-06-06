@@ -1,5 +1,5 @@
-# Stage 1: deps
-FROM golang:1.22-alpine AS deps
+# ── Stage 1: deps ─────────────────────────────────────────────────────────────
+FROM golang:1.26-alpine AS deps
 
 RUN apk add --no-cache git ca-certificates tzdata
 
@@ -8,7 +8,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Stage 2: build
+# ── Stage 2: build ────────────────────────────────────────────────────────────
 FROM deps AS builder
 
 COPY . .
@@ -20,7 +20,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     -o /bin/auth \
     ./cmd/auth
 
-# Stage 3: dev (air hot-reload)
+# ── Stage 3: dev (air hot-reload) ─────────────────────────────────────────────
 FROM deps AS dev
 
 RUN go install github.com/air-verse/air@latest
@@ -31,16 +31,23 @@ COPY . .
 EXPOSE 8081 9091
 CMD ["air", "-c", ".air.toml"]
 
-# Stage 4: production
-FROM gcr.io/distroless/static-debian12:nonroot AS production
+# ── Stage 4: production ────────────────────────────────────────────────────────
+# Alpine instead of distroless — sh is required to read Docker secrets in the
+# entrypoint before exec-ing the Go binary. Alpine is ~8MB, has no package
+# manager cache, and runs as a non-root user.
+FROM alpine:3.22.4 AS production
 
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /usr/share/zoneinfo                 /usr/share/zoneinfo
-COPY --from=builder /bin/auth                           /auth
+# Install only what is needed at runtime
+RUN apk add --no-cache ca-certificates tzdata wget
 
-# Run as root so Docker Compose file-based secrets (0400, owned by root) are readable.
-# In production Kubernetes, use mounted secrets with proper fsGroup instead.
-USER root
+# Create a non-root user with a fixed uid/gid
+RUN addgroup -g 10001 -S app \
+ && adduser  -u 10001 -S app -G app
+
+COPY --from=builder /bin/auth /auth
+
+# Drop to non-root before the process starts
+USER app
 
 EXPOSE 8081 9091
 
